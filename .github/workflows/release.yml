@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+
+# One release at a time; never cancel an in-flight publish
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: read-all
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push git tag + upload release assets
+      id-token: write # OIDC for cosign keyless signing
+    outputs:
+      version: ${{ steps.pkg.outputs.version }}
+      hashes: ${{ steps.hash.outputs.hashes }}
+      release_exists: ${{ steps.check.outputs.skip }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Read version from package.json
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check whether this version has already been released
+        id: check
+        run: |
+          if git ls-remote --tags origin "refs/tags/v${{ steps.pkg.outputs.version }}" | grep -q .; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "v${{ steps.pkg.outputs.version }} already tagged — nothing to publish."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "New version v${{ steps.pkg.outputs.version }} — publishing."
+          fi
+
+      - name: Build
+        if: steps.check.outputs.skip == 'false'
+        run: npm run build
+
+      - name: Pack npm tarball
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          mkdir -p dist-release
+          npm pack --pack-destination dist-release
+          mv dist-release/*.tgz dist-release/eslint-plugin-mvvm.tgz
+
+      - name: Generate checksums
+        id: hash
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd dist-release
+          sha256sum eslint-plugin-mvvm.tgz > sha256sums.txt
+          echo "hashes=$(sha256sum eslint-plugin-mvvm.tgz | base64 -w0)" >> $GITHUB_OUTPUT
+
+      - name: Install cosign
+        if: steps.check.outputs.skip == 'false'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign tarball
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cosign sign-blob --yes dist-release/eslint-plugin-mvvm.tgz \
+            --bundle dist-release/eslint-plugin-mvvm.tgz.bundle
+
+      - name: Tag release
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git tag "v${{ steps.pkg.outputs.version }}"
+          git push origin "v${{ steps.pkg.outputs.version }}"
+
+      - name: Create GitHub release
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          gh release create "v${{ steps.pkg.outputs.version }}" \
+            --generate-notes \
+            --title "v${{ steps.pkg.outputs.version }}" \
+            dist-release/eslint-plugin-mvvm.tgz \
+            dist-release/eslint-plugin-mvvm.tgz.bundle \
+            dist-release/sha256sums.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload tarball artifact for npm publish
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-tarball
+          path: dist-release/eslint-plugin-mvvm.tgz
+          retention-days: 1
+
+  provenance:
+    needs: [release]
+    if: needs.release.outputs.release_exists == 'false'
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.release.outputs.hashes }}"
+      upload-assets: true
+      upload-tag-name: "v${{ needs.release.outputs.version }}"
+
+  npm-publish:
+    name: Publish to npm
+    needs: [release]
+    if: needs.release.outputs.release_exists == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC for npm provenance
+    steps:
+      - name: Download tarball artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-tarball
+          path: dist-release
+
+      - name: Set up Node for npm publish
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish to npm
+        run: npm publish ./dist-release/eslint-plugin-mvvm.tgz --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
