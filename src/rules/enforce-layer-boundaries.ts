@@ -16,7 +16,13 @@
  *   ViewModel → Model      ✅
  */
 import type { Rule } from 'eslint';
-import { getLayer, resolveImportLayer, MvvmLayer } from '../utils';
+import {
+  getFilename,
+  getLayer,
+  getSettings,
+  resolveImportLayer,
+  MvvmLayer,
+} from '../utils';
 
 type Violation = {
   from: MvvmLayer;
@@ -40,8 +46,8 @@ const rule: Rule.RuleModule = {
     type: 'problem',
     docs: {
       description: 'Enforce MVVM layer import boundaries',
-      category: 'MVVM',
       recommended: true,
+      url: 'https://github.com/sethcarney/eslint-plugin-mvvm/blob/main/docs/rules/enforce-layer-boundaries.md',
     },
     schema: [
       {
@@ -69,8 +75,9 @@ const rule: Rule.RuleModule = {
   },
 
   create(context) {
-    const filePath = context.getFilename();
-    const currentLayer = getLayer(filePath);
+    const settings = getSettings(context);
+    const filePath = getFilename(context);
+    const currentLayer = getLayer(filePath, settings);
     if (currentLayer === 'unknown') return {};
 
     const options =
@@ -78,10 +85,9 @@ const rule: Rule.RuleModule = {
     const allowTypeFromModel = options.allowTypeImportsFromModel ?? false;
 
     function checkImport(node: Rule.Node, source: string, isTypeImport: boolean) {
-      const importedLayer = resolveImportLayer(source, filePath);
+      const importedLayer = resolveImportLayer(source, filePath, settings);
       if (importedLayer === 'unknown') return;
 
-      // Relaxed: View can do `import type` from Model when option is enabled
       if (
         allowTypeFromModel &&
         isTypeImport &&
@@ -100,12 +106,11 @@ const rule: Rule.RuleModule = {
     return {
       ImportDeclaration(node) {
         const source = node.source.value as string;
-        // @typescript-eslint/parser adds importKind; cast to access it safely
-        const isTypeImport = (node as unknown as { importKind?: string }).importKind === 'type';
+        const isTypeImport =
+          (node as unknown as { importKind?: string }).importKind === 'type';
         checkImport(node, source, isTypeImport);
       },
 
-      // Dynamic import(): import('./api/users')
       ImportExpression(node) {
         if (node.source.type === 'Literal') {
           const source = node.source.value as string;
@@ -113,7 +118,6 @@ const rule: Rule.RuleModule = {
         }
       },
 
-      // require('./api/users')
       CallExpression(node) {
         const callee = node.callee;
         if (

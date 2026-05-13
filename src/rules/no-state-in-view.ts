@@ -3,6 +3,8 @@
  *
  * Prevents useState / useReducer from being used in View files.
  *
+ * A View is a `.tsx` or `.jsx` file that is not a ViewModel.
+ *
  * Modes:
  *   strict        — no useState/useReducer at all in View files
  *   warn-business — only flag when useState AND an API call coexist in the
@@ -10,7 +12,7 @@
  *                   permitting pure UI state like isOpen, isExpanded, etc.)
  */
 import type { Rule } from 'eslint';
-import { isViewFile } from '../utils';
+import { getFilename, getSettings, isViewFile } from '../utils';
 
 type Mode = 'strict' | 'warn-business';
 
@@ -22,7 +24,15 @@ const API_HOOK_PATTERNS = [
   /^fetch$/,
 ];
 
-const AXIOS_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'request', 'head']);
+const AXIOS_METHODS = new Set([
+  'get',
+  'post',
+  'put',
+  'patch',
+  'delete',
+  'request',
+  'head',
+]);
 
 function isApiCall(node: Rule.Node): boolean {
   if (node.type !== 'CallExpression') return false;
@@ -49,9 +59,9 @@ const rule: Rule.RuleModule = {
   meta: {
     type: 'suggestion',
     docs: {
-      description: 'Disallow state hooks in View files',
-      category: 'MVVM',
+      description: 'Disallow state hooks in View files (.tsx / .jsx)',
       recommended: true,
+      url: 'https://github.com/sethcarney/eslint-plugin-mvvm/blob/main/docs/rules/no-state-in-view.md',
     },
     schema: [
       {
@@ -76,8 +86,9 @@ const rule: Rule.RuleModule = {
   },
 
   create(context) {
-    const filePath = context.getFilename();
-    if (!isViewFile(filePath)) return {};
+    const settings = getSettings(context);
+    const filePath = getFilename(context);
+    if (!isViewFile(filePath, settings)) return {};
 
     const options = (context.options[0] as { mode?: Mode }) ?? {};
     const mode: Mode = options.mode ?? 'warn-business';

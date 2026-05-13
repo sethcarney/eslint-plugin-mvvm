@@ -54,7 +54,33 @@ describe('mvvm/no-state-in-view', () => {
           code: `import { useState } from 'react'; import { useQuery } from '@tanstack/react-query'; export function UserList() { const [filter, setFilter] = useState(''); const { data } = useQuery({ queryKey: ['users', filter], queryFn: () => fetch('/api/users') }); return <div/>; }`,
           errors: [{ messageId: 'noStateBusiness' }],
         },
+        // strict: useState in a .jsx file (no folder hint)
+        {
+          filename: '/app/UserList.jsx',
+          code: `import { useState } from 'react'; export function UserList() { const [users, setUsers] = useState([]); return <div/>; }`,
+          options: [{ mode: 'strict' }],
+          errors: [{ messageId: 'noStateStrict' }],
+        },
       ],
+    });
+  });
+
+  it('respects custom viewModelPatterns from settings.mvvm', () => {
+    tester.run('no-state-in-view', rule, {
+      valid: [
+        // `.vm.tsx` file matched by custom VM pattern: useState allowed
+        {
+          filename: '/app/user.vm.tsx',
+          code: `import { useState } from 'react'; export function useUserVM() { const [u, setU] = useState(null); return { u, setU }; }`,
+          options: [{ mode: 'strict' }],
+          settings: {
+            mvvm: {
+              viewModelPatterns: ['\\.vm\\.(tsx?|jsx?)$'],
+            },
+          },
+        },
+      ],
+      invalid: [],
     });
   });
 });

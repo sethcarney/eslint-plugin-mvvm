@@ -1,60 +1,93 @@
+import type { ESLint, Linter } from 'eslint';
+
 import noApiInView from './rules/no-api-in-view';
 import noStateInView from './rules/no-state-in-view';
 import noJsxInViewModel from './rules/no-jsx-in-viewmodel';
 import enforceLayerBoundaries from './rules/enforce-layer-boundaries';
 
-const plugin = {
-  meta: {
-    name: 'eslint-plugin-mvvm',
-    version: '1.0.0',
-  },
+export type { MvvmSettings, MvvmLayer } from './utils';
 
-  rules: {
-    'no-api-in-view': noApiInView,
-    'no-state-in-view': noStateInView,
-    'no-jsx-in-viewmodel': noJsxInViewModel,
-    'enforce-layer-boundaries': enforceLayerBoundaries,
-  },
+const meta = {
+  name: 'eslint-plugin-mvvm',
+  version: '1.0.0',
+} as const;
 
-  configs: {} as Record<string, unknown>,
+const rules = {
+  'no-api-in-view': noApiInView,
+  'no-state-in-view': noStateInView,
+  'no-jsx-in-viewmodel': noJsxInViewModel,
+  'enforce-layer-boundaries': enforceLayerBoundaries,
 };
 
 /**
- * recommended — pragmatic defaults suitable for most projects and
- *               incremental adoption on existing codebases.
+ * `eslint-plugin-mvvm` — enforces MVVM architectural layer boundaries for
+ * React codebases. Designed for ESLint 9 flat config.
  *
- *   no-api-in-view         error  (requireJsxConfirmation: true)
- *   no-state-in-view       warn   (mode: warn-business)
- *   no-jsx-in-viewmodel    error
- *   enforce-layer-bounds   error  (allowTypeImportsFromModel: true)
+ * Example flat config:
+ *
+ *     import mvvm from 'eslint-plugin-mvvm';
+ *
+ *     export default [
+ *       mvvm.configs.recommended,
+ *       {
+ *         settings: {
+ *           mvvm: {
+ *             // Optional: override ViewModel naming conventions
+ *             viewModelPatterns: ['\\.vm\\.', 'ViewModel\\.'],
+ *           },
+ *         },
+ *       },
+ *     ];
  */
-plugin.configs.recommended = {
-  plugins: { mvvm: plugin },
-  rules: {
-    'mvvm/no-api-in-view': ['error', { requireJsxConfirmation: true }],
-    'mvvm/no-state-in-view': ['warn', { mode: 'warn-business' }],
-    'mvvm/no-jsx-in-viewmodel': 'error',
-    'mvvm/enforce-layer-boundaries': [
-      'error',
-      { allowTypeImportsFromModel: true },
-    ],
+const plugin: ESLint.Plugin & {
+  configs: {
+    recommended: Linter.Config;
+    strict: Linter.Config;
+  };
+} = {
+  meta,
+  rules,
+  configs: {
+    /**
+     * recommended — pragmatic defaults suitable for most projects and
+     *               incremental adoption on existing codebases.
+     */
+    recommended: {
+      name: 'mvvm/recommended',
+      plugins: {},
+      rules: {
+        'mvvm/no-api-in-view': ['error', { requireJsxConfirmation: true }],
+        'mvvm/no-state-in-view': ['warn', { mode: 'warn-business' }],
+        'mvvm/no-jsx-in-viewmodel': 'error',
+        'mvvm/enforce-layer-boundaries': [
+          'error',
+          { allowTypeImportsFromModel: true },
+        ],
+      },
+    },
+
+    /**
+     * strict — zero-tolerance. No state at all in Views, no type-import
+     *          exceptions. Use for greenfield projects.
+     */
+    strict: {
+      name: 'mvvm/strict',
+      plugins: {},
+      rules: {
+        'mvvm/no-api-in-view': 'error',
+        'mvvm/no-state-in-view': ['error', { mode: 'strict' }],
+        'mvvm/no-jsx-in-viewmodel': 'error',
+        'mvvm/enforce-layer-boundaries': 'error',
+      },
+    },
   },
 };
 
-/**
- * strict — zero-tolerance mode. No state at all in Views, no type-import
- *          exceptions. Use when starting a greenfield project or enforcing
- *          full layer purity.
- */
-plugin.configs.strict = {
-  plugins: { mvvm: plugin },
-  rules: {
-    'mvvm/no-api-in-view': 'error',
-    'mvvm/no-state-in-view': ['error', { mode: 'strict' }],
-    'mvvm/no-jsx-in-viewmodel': 'error',
-    'mvvm/enforce-layer-boundaries': 'error',
-  },
-};
+// `plugins` must reference the plugin itself; this circular wiring has to
+// happen after the plugin object exists.
+plugin.configs.recommended.plugins = { mvvm: plugin };
+plugin.configs.strict.plugins = { mvvm: plugin };
 
 export default plugin;
-export const { rules, configs } = plugin;
+export { rules };
+export const { configs } = plugin;
