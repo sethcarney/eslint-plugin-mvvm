@@ -3,11 +3,13 @@
  *
  * Prevents API calls (fetch, axios, RTK Query hooks, TanStack Query,
  * SWR, Apollo) from being made directly inside View files.
+ *
+ * A View is a `.tsx` or `.jsx` file that is not a ViewModel. ViewModel
+ * naming conventions are read from `settings.mvvm.viewModelPatterns`,
+ * defaulting to common React hook conventions — see ../utils.ts.
  */
 import type { Rule } from 'eslint';
-import { isViewFile } from '../utils';
-
-// ─── Patterns ────────────────────────────────────────────────────────────────
+import { getFilename, getSettings, isViewFile } from '../utils';
 
 /** Identifiers that are always an API call regardless of context */
 const BARE_API_CALLS = new Set(['fetch', 'useSWR', 'useLazyQuery']);
@@ -19,22 +21,28 @@ const HOOK_PATTERNS = [
 ];
 
 /** axios method calls: axios.get(), axios.post(), etc. */
-const AXIOS_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'request', 'head']);
+const AXIOS_METHODS = new Set([
+  'get',
+  'post',
+  'put',
+  'patch',
+  'delete',
+  'request',
+  'head',
+]);
 
 function isApiHook(name: string): boolean {
   if (BARE_API_CALLS.has(name)) return true;
   return HOOK_PATTERNS.some((p) => p.test(name));
 }
 
-// ─── Rule ─────────────────────────────────────────────────────────────────────
-
 const rule: Rule.RuleModule = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Disallow API calls in View files',
-      category: 'MVVM',
+      description: 'Disallow API calls in View files (.tsx / .jsx)',
       recommended: true,
+      url: 'https://github.com/sethcarney/eslint-plugin-mvvm/blob/main/docs/rules/no-api-in-view.md',
     },
     schema: [
       {
@@ -43,7 +51,7 @@ const rule: Rule.RuleModule = {
           requireJsxConfirmation: {
             type: 'boolean',
             description:
-              'Only report if the file also contains JSX. Prevents false positives on non-View files that match view path patterns.',
+              'Only report if the file also contains JSX. Prevents false positives on .tsx/.jsx files that are pure utility modules.',
           },
         },
         additionalProperties: false,
@@ -56,10 +64,12 @@ const rule: Rule.RuleModule = {
   },
 
   create(context) {
-    const filePath = context.getFilename();
-    if (!isViewFile(filePath)) return {};
+    const settings = getSettings(context);
+    const filePath = getFilename(context);
+    if (!isViewFile(filePath, settings)) return {};
 
-    const options = (context.options[0] as { requireJsxConfirmation?: boolean }) ?? {};
+    const options =
+      (context.options[0] as { requireJsxConfirmation?: boolean }) ?? {};
     const requireJsx = options.requireJsxConfirmation ?? false;
 
     let fileHasJsx = false;
@@ -74,7 +84,6 @@ const rule: Rule.RuleModule = {
     }
 
     return {
-      // Catch JSX presence
       JSXElement() {
         fileHasJsx = true;
       },
@@ -82,17 +91,14 @@ const rule: Rule.RuleModule = {
         fileHasJsx = true;
       },
 
-      // fetch(), useSWR(), useQuery(), useGetUsers(), etc.
       CallExpression(node) {
         const callee = node.callee;
 
-        // Direct call: fetch(...), useQuery(...), useSWR(...)
         if (callee.type === 'Identifier' && isApiHook(callee.name)) {
           reportOrDefer(node, callee.name);
           return;
         }
 
-        // axios.get(...), axios.post(...), etc.
         if (
           callee.type === 'MemberExpression' &&
           callee.object.type === 'Identifier' &&
@@ -104,7 +110,6 @@ const rule: Rule.RuleModule = {
         }
       },
 
-      // Flush deferred violations after the whole file is parsed
       'Program:exit'() {
         if (!requireJsx || fileHasJsx) {
           for (const { node, name } of violations) {

@@ -79,6 +79,59 @@ describe('mvvm/no-api-in-view', () => {
           options: [{ requireJsxConfirmation: true }],
           errors: [{ messageId: 'noApiInView' }],
         },
+        // .jsx file outside of a "components" directory → still a View
+        {
+          filename: '/app/UserList.jsx',
+          code: `export function UserList() { fetch('/api/users'); return <div/>; }`,
+          errors: [{ messageId: 'noApiInView' }],
+        },
+        // .jsx file in a flat structure
+        {
+          filename: '/Dashboard.jsx',
+          code: `import axios from 'axios'; export function Dashboard() { axios.get('/api/data'); return <div/>; }`,
+          errors: [{ messageId: 'noApiInView' }],
+        },
+      ],
+    });
+  });
+
+  it('respects custom viewModelPatterns from settings.mvvm', () => {
+    tester.run('no-api-in-view', rule, {
+      valid: [
+        // .tsx file matching a custom VM convention → treated as VM, not view
+        {
+          filename: '/app/userScreen.vm.tsx',
+          code: `export function useUser() { return fetch('/api/users'); }`,
+          settings: {
+            mvvm: {
+              viewModelPatterns: ['\\.vm\\.(tsx?|jsx?)$'],
+            },
+          },
+        },
+        // .tsx file matching custom PascalCase VM suffix
+        {
+          filename: '/app/UserPageModel.tsx',
+          code: `export function useUserPageModel() { return fetch('/api/users'); }`,
+          settings: {
+            mvvm: {
+              viewModelPatterns: ['PageModel\\.(tsx?|jsx?)$'],
+            },
+          },
+        },
+      ],
+      invalid: [
+        // .jsx hook is normally a VM, but with custom settings only `.vm.*`
+        // counts → so a default `useUsers.jsx` becomes a View and is flagged
+        {
+          filename: '/app/useUsers.jsx',
+          code: `export function useUsers() { fetch('/api/users'); return <div/>; }`,
+          settings: {
+            mvvm: {
+              viewModelPatterns: ['\\.vm\\.(tsx?|jsx?)$'],
+            },
+          },
+          errors: [{ messageId: 'noApiInView' }],
+        },
       ],
     });
   });

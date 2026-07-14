@@ -1,19 +1,20 @@
 /**
  * mvvm/no-jsx-in-viewmodel
  *
- * ViewModel files (use*.ts, *.vm.ts, hooks/) must not return JSX elements.
- * ViewModels are responsible for data and logic, not rendering.
+ * ViewModel files (use*, *.vm, *.viewmodel, *ViewModel, hooks/, viewmodels/)
+ * must not return JSX elements. ViewModels are responsible for data and
+ * logic, not rendering.
  */
 import type { Rule } from 'eslint';
-import { isViewModelFile } from '../utils';
+import { getFilename, getSettings, isViewModelFile } from '../utils';
 
 const rule: Rule.RuleModule = {
   meta: {
     type: 'problem',
     docs: {
       description: 'Disallow JSX in ViewModel files',
-      category: 'MVVM',
       recommended: true,
+      url: 'https://github.com/sethcarney/eslint-plugin-mvvm/blob/main/docs/rules/no-jsx-in-viewmodel.md',
     },
     schema: [],
     messages: {
@@ -23,18 +24,23 @@ const rule: Rule.RuleModule = {
   },
 
   create(context) {
-    const filePath = context.getFilename();
-    if (!isViewModelFile(filePath)) return {};
+    const settings = getSettings(context);
+    const filePath = getFilename(context);
+    if (!isViewModelFile(filePath, settings)) return {};
+
+    // JSXElement / JSXFragment are not part of estree's base node union,
+    // so we cast through `unknown` to the structural shape `context.report`
+    // accepts. The ESLint runtime supplies real AST nodes.
+    const report = (node: unknown) => {
+      context.report({
+        node: node as Rule.Node,
+        messageId: 'noJsxInViewModel',
+      });
+    };
 
     return {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      JSXElement(node: any) {
-        context.report({ node, messageId: 'noJsxInViewModel' });
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      JSXFragment(node: any) {
-        context.report({ node, messageId: 'noJsxInViewModel' });
-      },
+      JSXElement: report,
+      JSXFragment: report,
     };
   },
 };

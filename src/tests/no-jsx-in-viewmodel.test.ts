@@ -53,6 +53,49 @@ describe('mvvm/no-jsx-in-viewmodel', () => {
             { messageId: 'noJsxInViewModel' },
           ],
         },
+        // .jsx hook returning JSX
+        {
+          filename: '/src/useGreeting.jsx',
+          code: `export function useGreeting() { return <span>hi</span>; }`,
+          errors: [{ messageId: 'noJsxInViewModel' }],
+        },
+        // PascalCase ViewModel suffix with .tsx
+        {
+          filename: '/src/UserViewModel.tsx',
+          code: `export function UserViewModel() { return <div/>; }`,
+          errors: [{ messageId: 'noJsxInViewModel' }],
+        },
+      ],
+    });
+  });
+
+  it('respects custom viewModelPatterns from settings.mvvm', () => {
+    tester.run('no-jsx-in-viewmodel', rule, {
+      valid: [
+        // Default convention `useFoo.tsx` no longer counts as VM under
+        // restricted custom settings → rule doesn't apply.
+        {
+          filename: '/app/useFoo.tsx',
+          code: `export function useFoo() { return <div/>; }`,
+          settings: {
+            mvvm: {
+              viewModelPatterns: ['\\.vm\\.(tsx?|jsx?)$'],
+            },
+          },
+        },
+      ],
+      invalid: [
+        // Custom suffix `.model.tsx` is treated as a VM
+        {
+          filename: '/app/user.model.tsx',
+          code: `export function useUser() { return <div/>; }`,
+          settings: {
+            mvvm: {
+              viewModelPatterns: ['\\.model\\.(tsx?|jsx?)$'],
+            },
+          },
+          errors: [{ messageId: 'noJsxInViewModel' }],
+        },
       ],
     });
   });
