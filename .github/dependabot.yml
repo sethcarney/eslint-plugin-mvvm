@@ -17,6 +17,11 @@ updates:
       types:
         patterns:
           - "@types/*"
+    ignore:
+      # @typescript-eslint/* peer-requires typescript <6.1.0 — block major
+      # TypeScript bumps until typescript-eslint supports them.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
