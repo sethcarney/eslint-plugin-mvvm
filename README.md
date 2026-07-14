@@ -1,5 +1,12 @@
 # eslint-plugin-mvvm
 
+[![CI](https://github.com/sethcarney/eslint-plugin-mvvm/actions/workflows/ci.yml/badge.svg)](https://github.com/sethcarney/eslint-plugin-mvvm/actions/workflows/ci.yml)
+[![Release](https://github.com/sethcarney/eslint-plugin-mvvm/actions/workflows/release.yml/badge.svg)](https://github.com/sethcarney/eslint-plugin-mvvm/actions/workflows/release.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sethcarney/eslint-plugin-mvvm/badge)](https://scorecard.dev/viewer/?uri=github.com/sethcarney/eslint-plugin-mvvm)
+[![npm](https://img.shields.io/npm/v/eslint-plugin-mvvm.svg)](https://www.npmjs.com/package/eslint-plugin-mvvm)
+[![npm downloads](https://img.shields.io/npm/dm/eslint-plugin-mvvm.svg)](https://www.npmjs.com/package/eslint-plugin-mvvm)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 ESLint plugin that enforces MVVM architectural layer boundaries in React codebases.
 Data flows one way — `Model → ViewModel → View` — and these rules keep it that way:
 state usage and API calls in Views are flagged as ESLint errors and pushed into
@@ -11,7 +18,7 @@ ViewModel hooks where they belong.
 npm install --save-dev eslint-plugin-mvvm
 ```
 
-Requires ESLint >= 8 (flat config, ESLint 9 recommended).
+Requires Node.js >= 18 and ESLint >= 8 (flat config, ESLint 9 recommended).
 
 ## Usage
 
