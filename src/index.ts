@@ -57,7 +57,7 @@ const plugin: ESLint.Plugin & {
       plugins: {},
       rules: {
         'mvvm/no-api-in-view': ['error', { requireJsxConfirmation: true }],
-        'mvvm/no-state-in-view': ['warn', { mode: 'warn-business' }],
+        'mvvm/no-state-in-view': ['error', { mode: 'warn-business' }],
         'mvvm/no-jsx-in-viewmodel': 'error',
         'mvvm/enforce-layer-boundaries': [
           'error',
@@ -91,3 +91,14 @@ plugin.configs.strict.plugins = { mvvm: plugin };
 export default plugin;
 export { rules };
 export const { configs } = plugin;
+
+// CommonJS interop: make `require('eslint-plugin-mvvm')` and an ESM
+// `import mvvm from 'eslint-plugin-mvvm'` both resolve to the plugin object
+// itself instead of a `{ default: plugin }` namespace. Assigned last so it
+// replaces the transpiled `exports` object; the explicit property
+// assignments keep `default`/`rules`/`configs` statically analyzable for
+// Node's named-export detection (cjs-module-lexer).
+module.exports = plugin;
+module.exports.default = plugin;
+module.exports.rules = rules;
+module.exports.configs = plugin.configs;
