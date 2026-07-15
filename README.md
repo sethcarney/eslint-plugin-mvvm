@@ -4,6 +4,7 @@
 [![Release](https://github.com/sethcarney/eslint-plugin-mvvm/actions/workflows/release.yml/badge.svg)](https://github.com/sethcarney/eslint-plugin-mvvm/actions/workflows/release.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sethcarney/eslint-plugin-mvvm/badge)](https://scorecard.dev/viewer/?uri=github.com/sethcarney/eslint-plugin-mvvm)
 [![npm](https://img.shields.io/npm/v/eslint-plugin-mvvm.svg)](https://www.npmjs.com/package/eslint-plugin-mvvm)
+[![npm downloads](https://img.shields.io/npm/dm/eslint-plugin-mvvm.svg)](https://www.npmjs.com/package/eslint-plugin-mvvm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 ESLint plugin that enforces MVVM architectural layer boundaries in React codebases.
