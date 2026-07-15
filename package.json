@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-mvvm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ESLint plugin enforcing MVVM architectural layer boundaries",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src"
