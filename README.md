@@ -94,10 +94,10 @@ export default [
 ## Development
 
 ```sh
-npm ci
-npm run lint   # eslint
-npm test       # vitest
-npm run build  # tsc → dist/
+bun install
+bun run lint   # eslint
+bun test       # bun's test runner
+bun run build  # tsc → dist/
 ```
 
 Releases are automated: merging a `package.json` version bump to `master` tags,
