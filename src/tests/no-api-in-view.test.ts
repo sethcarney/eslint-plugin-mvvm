@@ -132,4 +132,39 @@ describe('mvvm/no-api-in-view', () => {
       },
     ],
   });
+
+  // Issue #18: ViewModel hooks named after CRUD verbs must not be reported.
+  tester.run('no-api-in-view (viewmodel hooks are not API calls)', rule, {
+    valid: [
+      // Hook resolves to the ViewModel layer via its import source → skip.
+      {
+        filename: '/app/pages/DeleteDialog.tsx',
+        code: `import { useDeleteDialogViewModel } from './DeleteDialogViewModel'; export function DeleteDialog() { const { isDeleting } = useDeleteDialogViewModel(); return <div>{isDeleting}</div>; }`,
+      },
+      // Hook name follows the ViewModel convention → skip even without an import.
+      {
+        filename: '/app/pages/ItemView.tsx',
+        code: `export function ItemView() { const vm = useGetItemViewModel(); return <div>{vm}</div>; }`,
+      },
+      {
+        filename: '/app/pages/Report.tsx',
+        code: `export function Report() { const vm = useLoadReportVM(); return <div>{vm}</div>; }`,
+      },
+      // ignorePattern escape hatch for names that collide with API conventions.
+      {
+        filename: '/app/components/Widget.tsx',
+        code: `export function Widget() { const d = useFetchWidgetData(); return <div>{d}</div>; }`,
+        options: [{ ignorePattern: '^useFetchWidgetData$' }],
+      },
+    ],
+    invalid: [
+      // A CRUD-verb hook that is NOT a ViewModel (resolves to the Model
+      // layer, no ViewModel-style name) is still reported.
+      {
+        filename: '/app/components/UserList.tsx',
+        code: `import { useDeleteUser } from '../api/usersApi'; export function UserList() { useDeleteUser(); return <div/>; }`,
+        errors: [{ messageId: 'noApiInView' }],
+      },
+    ],
+  });
 });
