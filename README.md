@@ -53,7 +53,7 @@ export default [
 
 | Rule | Description |
 | --- | --- |
-| `mvvm/no-api-in-view` | Disallows API calls (`fetch`, `axios.*`, TanStack Query, RTK Query, SWR, Apollo hooks) in View files. Data fetching belongs in ViewModel hooks. |
+| `mvvm/no-api-in-view` | Disallows API calls (`fetch`, `axios.*`, TanStack Query, RTK Query, SWR, Apollo hooks) in View files. Data fetching belongs in ViewModel hooks. A callee that resolves to the ViewModel layer or is named like a ViewModel (e.g. `useEditDialogViewModel`) is never flagged; use the `ignorePattern` option as an extra escape hatch. |
 | `mvvm/no-state-in-view` | Disallows `useState` / `useReducer` in View files. `strict` mode bans all state; `warn-business` mode only flags state that coexists with an API call in the same file (pure UI state like `isOpen` stays legal). |
 | `mvvm/no-jsx-in-viewmodel` | ViewModel files must return data, not JSX. |
 | `mvvm/enforce-layer-boundaries` | Enforces import direction: Views import ViewModels, ViewModels import Models — never the reverse, and Views never import Models directly (optionally relaxed for `import type`). |
@@ -66,6 +66,13 @@ export default [
 - **Model** — files under `models/`, `stores/`, `api/`, `services/`,
   `repositories/`, `domain/`, or `*.model.ts` / `*.service.ts` / `*.store.ts`.
 
+`enforce-layer-boundaries` resolves relative imports to their file on disk so
+the real extension drives classification. The **directory hints**
+(`viewDirPatterns`) only apply to a path that can't be resolved to a concrete
+`.ts`/`.tsx`/`.js`/`.jsx` file, and are matched relative to the project `root`
+(see below) — so an extension-less `../useThing` that points at a ViewModel
+hook is treated as a ViewModel, not misclassified as a View.
+
 Conventions are overridable via shared settings:
 
 ```js
@@ -77,11 +84,19 @@ export default [
         viewModelPatterns: ['\\.vm\\.', 'ViewModel\\.'],
         viewDirPatterns: ['/components/', '/pages/'],
         modelPatterns: ['/api/', '\\.service\\.ts$'],
+        // Base path for directory-hint matching. Defaults to the ESLint
+        // working directory, so a hint like `/ui/` only fires on directories
+        // *inside* the project, not an ancestor path that is named `ui/`.
+        root: import.meta.dirname,
       },
     },
   },
 ];
 ```
+
+Pass an explicit empty array to opt out of a category entirely — for example
+`viewDirPatterns: []` disables the View directory hints (an omitted value falls
+back to the defaults above).
 
 ## Configs
 
