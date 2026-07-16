@@ -120,7 +120,13 @@ function compile(
  */
 function relativeToRoot(normalized: string, root?: string): string {
   if (!root) return normalized;
-  const normRoot = root.replace(/\\/g, '/').replace(/\/+$/, '');
+  // Trim trailing slashes with a linear scan rather than an end-anchored
+  // regex (`/\/+$/`), which backtracks quadratically on paths with many
+  // trailing slashes (ReDoS-safe).
+  const slashed = root.replace(/\\/g, '/');
+  let end = slashed.length;
+  while (end > 0 && slashed[end - 1] === '/') end--;
+  const normRoot = slashed.slice(0, end);
   if (!normRoot) return normalized;
   if (normalized === normRoot) return '';
   if (normalized.startsWith(normRoot + '/')) {
