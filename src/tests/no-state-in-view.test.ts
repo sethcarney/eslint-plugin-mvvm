@@ -60,6 +60,28 @@ describe('mvvm/no-state-in-view', () => {
         options: [{ mode: 'strict' }],
         errors: [{ messageId: 'noStateStrict' }],
       },
+      // Issue #23 strict: namespaced React.useState is detected
+      {
+        filename: '/app/components/Example.tsx',
+        code: `import * as React from 'react'; export const Example = () => { const [open, setOpen] = React.useState(false); return <button onClick={() => setOpen(!open)}/>; };`,
+        options: [{ mode: 'strict' }],
+        errors: [{ messageId: 'noStateStrict' }],
+      },
+      // Issue #23 strict: namespaced React.useReducer is detected
+      {
+        filename: '/app/pages/Dashboard.tsx',
+        code: `import * as React from 'react'; export function Dashboard() { const [state, dispatch] = React.useReducer((s: number, a: number) => s + a, 0); return <div/>; }`,
+        options: [{ mode: 'strict' }],
+        errors: [{ messageId: 'noStateStrict' }],
+      },
+      // Issue #23 warn-business: namespaced React.useState + namespaced
+      // axios call (aliased client) coexist → violation
+      {
+        filename: '/app/components/UserList.tsx',
+        code: `import * as React from 'react'; import client from 'axios'; export function UserList() { const [users, setUsers] = React.useState([]); client.get('/api/users').then((r) => setUsers(r.data)); return <div/>; }`,
+        options: [{ mode: 'warn-business' }],
+        errors: [{ messageId: 'noStateBusiness' }],
+      },
     ],
   });
 

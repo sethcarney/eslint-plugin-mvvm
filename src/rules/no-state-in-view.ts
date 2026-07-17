@@ -12,7 +12,16 @@
  *                   permitting pure UI state like isOpen, isExpanded, etc.)
  */
 import type { Rule } from 'eslint';
-import { getFilename, getSettings, isViewFile } from '../utils';
+import type { CallExpression } from 'estree';
+import {
+  collectImportSources,
+  getAxiosCall,
+  getCalleeDisplayName,
+  getCalleeHookName,
+  getFilename,
+  getSettings,
+  isViewFile,
+} from '../utils';
 
 type Mode = 'strict' | 'warn-business';
 
@@ -24,35 +33,15 @@ const API_HOOK_PATTERNS = [
   /^fetch$/,
 ];
 
-const AXIOS_METHODS = new Set([
-  'get',
-  'post',
-  'put',
-  'patch',
-  'delete',
-  'request',
-  'head',
-]);
-
-function isApiCall(node: Rule.Node): boolean {
-  if (node.type !== 'CallExpression') return false;
-  const callee = node.callee;
-  if (
-    callee.type === 'Identifier' &&
-    API_HOOK_PATTERNS.some((p) => p.test(callee.name))
-  ) {
+function isApiCall(
+  node: CallExpression,
+  importSources: Map<string, string>
+): boolean {
+  const name = getCalleeHookName(node.callee);
+  if (name !== undefined && API_HOOK_PATTERNS.some((p) => p.test(name))) {
     return true;
   }
-  if (
-    callee.type === 'MemberExpression' &&
-    callee.object.type === 'Identifier' &&
-    callee.object.name === 'axios' &&
-    callee.property.type === 'Identifier' &&
-    AXIOS_METHODS.has(callee.property.name)
-  ) {
-    return true;
-  }
-  return false;
+  return getAxiosCall(node.callee, importSources) !== undefined;
 }
 
 const rule: Rule.RuleModule = {
@@ -96,22 +85,34 @@ const rule: Rule.RuleModule = {
     const stateNodes: Array<{ node: Rule.Node; name: string }> = [];
     let hasApiCall = false;
 
+    // Track where each locally-bound identifier was imported from so a
+    // namespaced axios call (`import client from 'axios'; client.get(...)`)
+    // is recognized when deciding whether business logic coexists with state.
+    const importSources = new Map<string, string>();
+
     return {
+      ImportDeclaration(node) {
+        collectImportSources(node, importSources);
+      },
+
       CallExpression(node) {
-        const callee = node.callee;
-        if (callee.type === 'Identifier' && STATE_HOOKS.has(callee.name)) {
+        // Resolve namespaced hook calls (`React.useState`) to their bare name
+        // so they are detected exactly like a plain `useState(...)`.
+        const hookName = getCalleeHookName(node.callee);
+        if (hookName !== undefined && STATE_HOOKS.has(hookName)) {
+          const name = getCalleeDisplayName(node.callee) ?? hookName;
           if (mode === 'strict') {
             context.report({
               node,
               messageId: 'noStateStrict',
-              data: { name: callee.name },
+              data: { name },
             });
           } else {
-            stateNodes.push({ node, name: callee.name });
+            stateNodes.push({ node, name });
           }
         }
 
-        if (mode === 'warn-business' && isApiCall(node)) {
+        if (mode === 'warn-business' && isApiCall(node, importSources)) {
           hasApiCall = true;
         }
       },

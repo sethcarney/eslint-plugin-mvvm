@@ -9,7 +9,7 @@ export type { MvvmSettings, MvvmLayer } from './utils';
 
 const meta = {
   name: 'eslint-plugin-mvvm',
-  version: '1.0.2',
+  version: '1.0.3',
 } as const;
 
 const rules = {

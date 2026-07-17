@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import type { CallExpression, ImportDeclaration } from 'estree';
 
 export type MvvmLayer = 'view' | 'viewmodel' | 'model' | 'unknown';
 
@@ -270,6 +271,90 @@ export function getFilename(context: MvvmContextLike): string {
   if (typeof context.filename === 'string') return context.filename;
   if (typeof context.getFilename === 'function') return context.getFilename();
   return '<input>';
+}
+
+/** axios instance methods: axios.get(), client.post(), etc. */
+const AXIOS_METHODS = new Set([
+  'get',
+  'post',
+  'put',
+  'patch',
+  'delete',
+  'request',
+  'head',
+]);
+
+type Callee = CallExpression['callee'];
+
+/**
+ * Resolves a call expression's callee to the bare name used for hook-pattern
+ * matching. A plain `Identifier` callee yields its name; a non-computed
+ * `MemberExpression` such as `React.useState` yields the property name
+ * (`useState`) so namespaced hook calls are detected exactly like bare ones.
+ * Returns `undefined` for computed or otherwise un-nameable callees.
+ */
+export function getCalleeHookName(callee: Callee): string | undefined {
+  if (callee.type === 'Identifier') return callee.name;
+  if (
+    callee.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.property.type === 'Identifier'
+  ) {
+    return callee.property.name;
+  }
+  return undefined;
+}
+
+/**
+ * Human-readable rendering of a callee for diagnostics: `React.useState` for a
+ * namespaced call, or the bare identifier name. Falls back to the resolved
+ * hook name for deeper member shapes.
+ */
+export function getCalleeDisplayName(callee: Callee): string | undefined {
+  if (callee.type === 'Identifier') return callee.name;
+  if (
+    callee.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.object.type === 'Identifier' &&
+    callee.property.type === 'Identifier'
+  ) {
+    return `${callee.object.name}.${callee.property.name}`;
+  }
+  return getCalleeHookName(callee);
+}
+
+/**
+ * Records an import declaration's default/namespace/named bindings into
+ * `sources` (local name → module specifier), so a callee's base identifier can
+ * later be traced back to the module it came from.
+ */
+export function collectImportSources(
+  node: ImportDeclaration,
+  sources: Map<string, string>
+): void {
+  const source = node.source.value;
+  if (typeof source !== 'string') return;
+  for (const spec of node.specifiers) {
+    sources.set(spec.local.name, source);
+  }
+}
+
+/**
+ * If `callee` is an axios method call whose base identifier resolves to an
+ * `axios` import — the conventional `axios.get(...)` or an aliased client
+ * (`import client from 'axios'; client.get(...)`) — returns a display string
+ * like `axios.get`. Returns `undefined` otherwise.
+ */
+export function getAxiosCall(
+  callee: Callee,
+  importSources: Map<string, string>
+): string | undefined {
+  if (callee.type !== 'MemberExpression' || callee.computed) return undefined;
+  if (callee.object.type !== 'Identifier') return undefined;
+  if (callee.property.type !== 'Identifier') return undefined;
+  if (!AXIOS_METHODS.has(callee.property.name)) return undefined;
+  if (importSources.get(callee.object.name) !== 'axios') return undefined;
+  return `${callee.object.name}.${callee.property.name}`;
 }
 
 export function getSettings(context: MvvmContextLike): MvvmSettings {
