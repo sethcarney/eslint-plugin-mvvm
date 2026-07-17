@@ -10,6 +10,10 @@
  */
 import type { Rule } from 'eslint';
 import {
+  collectImportSources,
+  getAxiosCall,
+  getCalleeDisplayName,
+  getCalleeHookName,
   getFilename,
   getSettings,
   isViewFile,
@@ -33,17 +37,6 @@ const HOOK_PATTERNS = [
  * call, so it is never reported.
  */
 const VIEWMODEL_NAME = /(?:ViewModel|VM)s?$/;
-
-/** axios method calls: axios.get(), axios.post(), etc. */
-const AXIOS_METHODS = new Set([
-  'get',
-  'post',
-  'put',
-  'patch',
-  'delete',
-  'request',
-  'head',
-]);
 
 function isApiHook(name: string): boolean {
   if (BARE_API_CALLS.has(name)) return true;
@@ -124,11 +117,7 @@ const rule: Rule.RuleModule = {
 
     return {
       ImportDeclaration(node) {
-        const source = node.source.value;
-        if (typeof source !== 'string') return;
-        for (const spec of node.specifiers) {
-          importSources.set(spec.local.name, source);
-        }
+        collectImportSources(node, importSources);
       },
 
       JSXElement() {
@@ -141,21 +130,19 @@ const rule: Rule.RuleModule = {
       CallExpression(node) {
         const callee = node.callee;
 
-        if (callee.type === 'Identifier' && isApiHook(callee.name)) {
-          if (ignoreRegex?.test(callee.name)) return;
-          if (isViewModelHook(callee.name)) return;
-          reportOrDefer(node, callee.name);
+        // Resolve namespaced hook calls (`api.useGetThingQuery()`) to their
+        // bare name so they match the hook conventions like a plain call.
+        const hookName = getCalleeHookName(callee);
+        if (hookName !== undefined && isApiHook(hookName)) {
+          if (ignoreRegex?.test(hookName)) return;
+          if (isViewModelHook(hookName)) return;
+          reportOrDefer(node, getCalleeDisplayName(callee) ?? hookName);
           return;
         }
 
-        if (
-          callee.type === 'MemberExpression' &&
-          callee.object.type === 'Identifier' &&
-          callee.object.name === 'axios' &&
-          callee.property.type === 'Identifier' &&
-          AXIOS_METHODS.has(callee.property.name)
-        ) {
-          reportOrDefer(node, `axios.${callee.property.name}`);
+        const axiosCall = getAxiosCall(callee, importSources);
+        if (axiosCall !== undefined) {
+          reportOrDefer(node, axiosCall);
         }
       },
 

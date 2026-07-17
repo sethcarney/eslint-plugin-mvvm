@@ -90,6 +90,24 @@ describe('mvvm/no-api-in-view', () => {
         code: `import axios from 'axios'; export function Dashboard() { axios.get('/api/data'); return <div/>; }`,
         errors: [{ messageId: 'noApiInView' }],
       },
+      // Issue #23: namespaced RTK Query hook (`api.useGetThingQuery()`)
+      {
+        filename: '/app/components/UserList.tsx',
+        code: `import { api } from '../api/usersApi'; export function UserList() { const { data } = api.useGetUsersQuery(); return <div/>; }`,
+        errors: [{ messageId: 'noApiInView' }],
+      },
+      // Issue #23: aliased axios client (`import client from 'axios'`)
+      {
+        filename: '/app/pages/Dashboard.tsx',
+        code: `import client from 'axios'; export function Dashboard() { client.get('/api/data'); return <div/>; }`,
+        errors: [{ messageId: 'noApiInView' }],
+      },
+      // Issue #23: namespaced axios import (`import * as http from 'axios'`)
+      {
+        filename: '/app/pages/Report.tsx',
+        code: `import * as http from 'axios'; export function Report() { http.post('/api/report', {}); return <div/>; }`,
+        errors: [{ messageId: 'noApiInView' }],
+      },
     ],
   });
 
