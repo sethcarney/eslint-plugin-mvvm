@@ -1,4 +1,20 @@
 version: 2
+
+# Grouping strategy — two kinds of groups, for two different reasons:
+#
+#   1. Must-match families. Dependencies that are a single thing upstream but
+#      that Dependabot sees as several separate entries. They are released from
+#      one repo on one version line and break when the entries drift apart, so
+#      these groups carry NO `update-types` filter — majors have to travel
+#      together too. This is correctness, not noise reduction.
+#
+#   2. A per-ecosystem catch-all, restricted to minor and patch. Majors are
+#      deliberately excluded so they still arrive as individual, reviewable
+#      PRs. Every must-match family above is repeated in `exclude-patterns` so
+#      the catch-all can never peel one member off into a PR of its own.
+#
+# Groups only affect PRs Dependabot creates from now on; existing ungrouped
+# PRs have to be closed before they are recreated grouped.
 updates:
   - package-ecosystem: npm
     directory: "/"
@@ -6,17 +22,39 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      eslint:
-        patterns:
-          - "eslint"
-          - "@eslint/*"
-          - "eslint-*"
+      # parser, eslint-plugin, utils, type-utils, scope-manager and the
+      # `typescript-eslint` umbrella package all ship from one monorepo on a
+      # shared version and peer-depend on each other exactly. A split bump
+      # fails to resolve. Only `parser` is a direct dependency today; the group
+      # is declared up front so adding a second member cannot re-open the gap.
       typescript-eslint:
         patterns:
+          - "typescript-eslint"
           - "@typescript-eslint/*"
-      types:
+
+      # `eslint` and `@eslint/js` are published together from the ESLint
+      # monorepo and always carry the same version — flat config pulls its
+      # entry point from @eslint/js, so a split leaves the two on different
+      # majors.
+      eslint-core:
         patterns:
-          - "@types/*"
+          - "eslint"
+          - "@eslint/js"
+
+      # Everything else — @types/*, eslint plugins/configs, typescript, tooling
+      # — batched at minor and patch. Majors fall out of this group and open as
+      # individual PRs.
+      npm-minor-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
+          - "eslint"
+          - "@eslint/js"
+        update-types:
+          - minor
+          - patch
     ignore:
       # @typescript-eslint/* peer-requires typescript <6.1.0 — block major
       # TypeScript bumps until typescript-eslint supports them.
@@ -28,3 +66,24 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # /init, /analyze and /upload-sarif are three dependencies to Dependabot
+      # and one action repo upstream: all three must be pinned to the same SHA
+      # or Analyze fails against an init from a different version. This is the
+      # split that had to be repaired by hand in 0e82b5d, after #4 bumped
+      # upload-sarif alone and #5/#8 each bumped one of the other two.
+      codeql-action:
+        patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
+
+      # Everything else at minor and patch; majors open individually.
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
+        update-types:
+          - minor
+          - patch
