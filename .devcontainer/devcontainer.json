@@ -1,7 +1,18 @@
 {
   "name": "eslint-plugin-mvvm",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
 
+  // Pinned by digest, not just by tag — `1-22-bookworm` is a moving target that
+  // is rebuilt for security patches. Nothing updates this automatically
+  // (Dependabot's devcontainers ecosystem covers features, not `image`), so
+  // re-resolve it by hand when bumping:
+  //   curl -sI -H "Accept: application/vnd.oci.image.index.v1+json" \
+  //     https://mcr.microsoft.com/v2/devcontainers/typescript-node/manifests/1-22-bookworm \
+  //     | grep -i docker-content-digest
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm@sha256:7c2e711a4f7b02f32d2da16192d5e05aa7c95279be4ce889cff5df316f251c1d",
+
+  // Resolved to a digest in devcontainer-lock.json; Dependabot keeps that
+  // current. Bun is not a feature — post-create.sh installs it from the
+  // official release, pinned by version and SHA-256.
   "features": {
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },

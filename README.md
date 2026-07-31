@@ -132,6 +132,22 @@ everything except the login. The mismatch fails silently, so
 `.devcontainer/check-devcontainer-auth.py` asserts all three agree and runs in
 CI. The volume is scoped per repository, so you sign in once for this project.
 
+Everything the container pulls in is pinned, matching how workflows pin actions
+by SHA:
+
+| Dependency | Pinned by | Updated by |
+| --- | --- | --- |
+| Base image | tag + `@sha256:` digest in `devcontainer.json` | manual — command is in the file |
+| Claude Code feature | digest in `devcontainer-lock.json` | Dependabot (`devcontainers`) |
+| Bun | version + SHA-256 of the release artifact in `post-create.sh` | manual — command is in the file |
+| Project dependencies | `bun.lock`, installed with `--frozen-lockfile` | Dependabot (`npm`) |
+
+Bun is installed from its GitHub release rather than with `npm install -g`
+because Scorecard's `Pinned-Dependencies` check treats every `npm install <pkg>`
+in a shell script as unpinned regardless of the version specifier — only
+`npm ci` or a git URL at a commit SHA counts. Verifying the artifact's checksum
+is both the stronger guarantee and the one the check accepts.
+
 Releases are automated: merging a `package.json` version bump to `master` tags,
 signs, and publishes the package with npm provenance (see
 `.github/workflows/release.yml`).
