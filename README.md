@@ -132,15 +132,14 @@ everything except the login. The mismatch fails silently, so
 `.devcontainer/check-devcontainer-auth.py` asserts all three agree and runs in
 CI. The volume is scoped per repository, so you sign in once for this project.
 
-Everything the container pulls in is pinned, matching how workflows pin actions
-by SHA:
+The toolchain is pinned, matching how workflows pin actions by SHA:
 
 | Dependency | Pinned by | Updated by |
 | --- | --- | --- |
-| Base image | tag + `@sha256:` digest in `devcontainer.json` | manual — command is in the file |
-| Claude Code feature | digest in `devcontainer-lock.json` | Dependabot (`devcontainers`) |
 | Bun | version + SHA-256 of the release artifact in `post-create.sh` | manual — command is in the file |
+| Claude Code feature | digest in `devcontainer-lock.json` | Dependabot (`devcontainers`) |
 | Project dependencies | `bun.lock`, installed with `--frozen-lockfile` | Dependabot (`npm`) |
+| Base image | tag only, intentionally — see the note in `devcontainer.json` | upstream rebuilds |
 
 Bun is installed from its GitHub release rather than with `npm install -g`
 because Scorecard's `Pinned-Dependencies` check treats every `npm install <pkg>`
