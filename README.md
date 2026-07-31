@@ -115,6 +115,23 @@ bun test       # bun's test runner
 bun run build  # tsc → dist/
 ```
 
+### Dev container
+
+`.devcontainer/` defines the full toolchain (Node 22, Bun, project dependencies)
+so nothing has to be installed on the host. In VS Code or Cursor with the
+[Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+extension, open the repository and choose **Reopen in Container**; `bun install`
+runs automatically on first start.
+
+Claude Code is installed in the container and its login persists across
+rebuilds. That takes three settings naming the same directory — the `~/.claude`
+volume mount, `containerEnv.CLAUDE_CONFIG_DIR`, and `remoteUser`'s home — because
+the OAuth session lives in `~/.claude.json`, *beside* the `~/.claude` directory
+rather than inside it. Mounting a volume on `~/.claude` alone persists
+everything except the login. The mismatch fails silently, so
+`.devcontainer/check-devcontainer-auth.py` asserts all three agree and runs in
+CI. The volume is scoped per repository, so you sign in once for this project.
+
 Releases are automated: merging a `package.json` version bump to `master` tags,
 signs, and publishes the package with npm provenance (see
 `.github/workflows/release.yml`).

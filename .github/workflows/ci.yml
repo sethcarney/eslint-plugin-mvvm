@@ -28,6 +28,18 @@ jobs:
       - name: Type check
         run: bunx tsc --noEmit
 
+  devcontainer:
+    name: Dev Container Auth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Persisting the Claude Code login takes three settings that must all
+      # name the same directory; every way of getting it wrong fails silently.
+      # This turns that into a build failure. python3 is preinstalled on the
+      # runner, so no extra action is needed.
+      - name: Verify Claude Code auth survives a rebuild
+        run: python3 .devcontainer/check-devcontainer-auth.py --require-feature
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
