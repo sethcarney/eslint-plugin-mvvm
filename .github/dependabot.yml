@@ -61,6 +61,17 @@ updates:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
 
+  # Dev container features, resolved to digests in
+  # `.devcontainer/devcontainer-lock.json`. This ecosystem covers `features`
+  # only, so the pinned Bun version + checksums in `post-create.sh` remain a
+  # manual bump, documented at that site. The base `image` is deliberately left
+  # on a floating tag so upstream security rebuilds land without one.
+  - package-ecosystem: devcontainers
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

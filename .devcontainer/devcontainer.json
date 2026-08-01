@@ -1,0 +1,52 @@
+{
+  "name": "eslint-plugin-mvvm",
+
+  // Deliberately a floating tag rather than a digest. Scorecard does not read
+  // devcontainer.json, so a digest here buys no Pinned-Dependencies credit,
+  // and nothing would keep it current — Dependabot's devcontainers ecosystem
+  // covers `features`, not `image`. A frozen digest would mean rebuilds stop
+  // picking up the base image's security patches. The toolchain that actually
+  // has to be reproducible (Bun, project dependencies) is pinned elsewhere.
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+
+  // Resolved to a digest in devcontainer-lock.json; Dependabot keeps that
+  // current. Bun is not a feature — post-create.sh installs it from the
+  // official release, pinned by version and SHA-256.
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+
+  // Claude Code splits its state across two locations: ~/.claude/ (settings,
+  // history, backups) and ~/.claude.json (the OAuth session), which sits
+  // *beside* the directory rather than inside it. A volume on ~/.claude alone
+  // therefore persists everything except the login. CLAUDE_CONFIG_DIR moves
+  // .claude.json into the directory so one volume covers all of it.
+  //
+  // The mount target, CLAUDE_CONFIG_DIR, and remoteUser's home must all name
+  // the same path. A mismatch fails silently — no error, just a sign-in prompt
+  // on every rebuild. `.devcontainer/check-devcontainer-auth.py` guards this.
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+  "remoteUser": "node",
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "oven.bun-vscode"
+      ],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "eslint.useFlatConfig": true,
+        "eslint.validate": ["typescript", "javascript"],
+        "files.eol": "\n"
+      }
+    }
+  }
+}
